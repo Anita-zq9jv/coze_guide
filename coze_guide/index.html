@@ -1,0 +1,1096 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小红书配图生成案例 · Coze 智能体搭建教程</title>
+<meta name="description" content="从零开始用 Coze 零代码搭建小红书房产封面配图智能体的完整教程，包含提示词模板、工作流配置、调试发布全流程。">
+<meta name="theme-color" content="#ff2442">
+<meta property="og:title" content="小红书配图生成案例 · Coze 智能体搭建教程">
+<meta property="og:description" content="零代码、低成本、快速搭建 Coze 智能体，自动生成小红书爆款房产封面配图。">
+<meta property="og:type" content="article">
+<style>
+  /* ===== Design tokens ===== */
+  :root{
+    --ink:#1f2329;
+    --ink-soft:#3c424b;
+    --ink-mute:#6b7280;
+    --ink-faint:#9aa1ab;
+    --line:#e7e9ee;
+    --line-soft:#f1f3f6;
+    --bg:#ffffff;
+    --bg-soft:#fafbfc;
+    --bg-card:#f7f8fa;
+    --accent:#ff2442;
+    --accent-soft:#fff1f3;
+    --accent-deep:#c81c34;
+    --gold:#b87a2b;
+    --gold-soft:#fdf6e6;
+    --code-bg:#f4f5f7;
+    --code-fg:#1f2329;
+    --code-mute:#6b7280;
+    --code-header:#eceef2;
+    --code-header-border:#d6d9df;
+    --code-btn-bg:#ffffff;
+    --code-btn-border:#d6d9df;
+    --shadow-sm:0 1px 2px rgba(15,23,42,.04);
+    --shadow-md:0 8px 24px rgba(15,23,42,.06);
+    --radius:10px;
+    --radius-lg:16px;
+    --maxw:640px;
+    --toc-w:212px;
+    --gap:36px;
+    --fz-base:15.5px;
+    --lh:1.82;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ink:#e6e8eb;
+      --ink-soft:#c5c9d0;
+      --ink-mute:#8a9099;
+      --ink-faint:#5b6168;
+      --line:#2a2f37;
+      --line-soft:#1d2128;
+      --bg:#0f1216;
+      --bg-soft:#161a20;
+      --bg-card:#1b2027;
+      --accent:#ff5872;
+      --accent-soft:#2a181c;
+      --accent-deep:#ff8a9d;
+      --gold:#d6a85a;
+      --gold-soft:#2a2218;
+      --code-bg:#1b2027;
+      --code-fg:#c5c9d0;
+      --code-mute:#6b7280;
+    --code-header:#eceef2;
+    --code-header-border:#d6d9df;
+    --code-btn-bg:#ffffff;
+    --code-btn-border:#d6d9df;
+      --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+      --shadow-md:0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  /* ===== Base ===== */
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth;scroll-padding-top:96px}
+  html,body{margin:0;padding:0;color:var(--ink);}
+  html{
+    background:#ffffff;
+  }
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",Arial,"Source Han Sans CN",sans-serif;
+    font-size:var(--fz-base);
+    line-height:var(--lh);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    background:url('media/fish-bg.webp.png') no-repeat fixed right center;
+    background-size:auto;
+    background-attachment:fixed;
+    position:relative;
+  }
+  body::before{
+    content:'';
+    position:fixed;
+    top:0;
+    left:0;
+    right:0;
+    bottom:0;
+    background:rgba(255,255,255,0.5);
+    pointer-events:none;
+    z-index:-1;
+  }
+  a{color:var(--accent-deep);text-decoration:none;word-break:break-all;transition:color .2s}
+  a:hover{color:var(--accent);text-decoration:underline}
+  code{font-family:"Fira Code","JetBrains Mono","SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;font-size:.92em;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+  hr{border:none;border-top:1px solid var(--line);margin:64px 0}
+  /* ===== Layout: TOC + main ===== */
+  .layout{
+    display:grid;
+    grid-template-columns:var(--toc-w) 1fr;
+    gap:var(--gap);
+    max-width:calc(var(--toc-w) + var(--gap) + var(--maxw));
+    margin:0 auto;
+    padding:40px 24px 96px;
+    align-items:start;
+    position:relative;
+    z-index:1;
+    background:transparent;
+  }
+  .toc{
+    position:sticky;
+    top:32px;
+    align-self:start;
+    font-size:16px;
+    line-height:1.7;
+    max-height:calc(100vh - 64px);
+    overflow-y:auto;
+    padding-right:6px;
+    scrollbar-width:thin;
+    scrollbar-color:var(--ink-faint) transparent;
+  }
+  .toc::-webkit-scrollbar{width:6px}
+  .toc::-webkit-scrollbar-thumb{background:var(--ink-faint);border-radius:3px}
+  .toc-title{
+    font-size:14px;
+    font-weight:600;
+    letter-spacing:.18em;
+    color:var(--ink-mute);
+    text-transform:uppercase;
+    margin:0 0 14px;
+    padding-left:12px;
+  }
+  .toc ol{list-style:none;margin:0;padding:0;counter-reset:section}
+  .toc .grp{margin:0 0 16px;counter-increment:section}
+  .toc .grp > a{
+    display:flex;align-items:baseline;gap:8px;
+    color:var(--ink-soft);
+    font-weight:600;
+    padding:7px 12px;
+    border-radius:8px;
+    border-left:2px solid transparent;
+    margin-left:-2px;
+    transition:all .2s;
+  }
+  .toc .grp > a::before{
+    content:counter(section,decimal-leading-zero);
+    font-size:13px;
+    color:var(--ink-faint);
+    font-weight:500;
+    font-variant-numeric:tabular-nums;
+    flex-shrink:0;
+  }
+  .toc .grp > a:hover{color:var(--accent-deep);background:var(--accent-soft);text-decoration:none}
+  .toc .grp.active > a{color:var(--accent-deep);border-left-color:var(--accent);background:var(--accent-soft)}
+  .toc .sub{list-style:none;margin:6px 0 0;padding:0 0 0 24px;border-left:1px dashed var(--line);margin-left:10px}
+  .toc .sub li{margin:0}
+  .toc .sub a{
+    display:block;
+    color:var(--ink-mute);
+    padding:4px 10px;
+    border-radius:6px;
+    font-weight:400;
+    font-size:15px;
+    transition:all .15s;
+  }
+  .toc .sub a:hover{color:var(--ink);background:var(--bg-soft);text-decoration:none}
+  /* ===== Main column ===== */
+  main{min-width:0}
+  /* ===== Hero ===== */
+  .hero{
+    margin:0 0 48px;
+    padding:24px 0 36px;
+    border-bottom:1px solid var(--line);
+  }
+  .hero .eyebrow{
+    display:inline-block;
+    font-size:11.5px;
+    font-weight:600;
+    letter-spacing:.18em;
+    color:var(--accent);
+    text-transform:uppercase;
+    margin-bottom:12px;
+  }
+  .hero h1{
+    font-size:30px;
+    line-height:1.35;
+    font-weight:800;
+    margin:0 0 12px;
+    letter-spacing:-.5px;
+    color:var(--ink);
+  }
+  .hero .lede{
+    font-size:16px;
+    line-height:1.7;
+    color:var(--ink-soft);
+    margin:0 0 20px;
+  }
+  .meta{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:5px 11px;
+    font-size:12px;
+    color:var(--ink-soft);
+    background:var(--bg-card);
+    border:1px solid var(--line);
+    border-radius:999px;
+    line-height:1.4;
+  }
+  .chip b{color:var(--ink);font-weight:600}
+  .chip.accent{background:var(--accent-soft);border-color:transparent;color:var(--accent-deep)}
+  .chip.accent b{color:var(--accent-deep)}
+  /* ===== Section heading ===== */
+  section{margin:0 0 24px;scroll-margin-top:96px}
+  h2{
+    font-size:24px;
+    line-height:1.4;
+    font-weight:700;
+    margin:64px 0 22px;
+    padding:0 0 12px;
+    color:var(--ink);
+    border-bottom:1px solid var(--line);
+    position:relative;
+    letter-spacing:-.3px;
+  }
+  h2 .sec-num{
+    display:inline-block;
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--accent);
+    background:var(--accent-soft);
+    padding:3px 9px;
+    border-radius:6px;
+    margin-right:10px;
+    vertical-align:middle;
+    letter-spacing:.05em;
+    font-variant-numeric:tabular-nums;
+  }
+  h3{
+    font-size:18px;
+    line-height:1.5;
+    font-weight:600;
+    margin:32px 0 12px;
+    color:var(--ink);
+    position:relative;
+    padding-left:14px;
+  }
+  h3::before{
+    content:"";
+    position:absolute;
+    left:0;top:10px;
+    width:4px;height:18px;
+    background:var(--accent);
+    border-radius:2px;
+  }
+  h4{
+    font-size:16px;
+    line-height:1.5;
+    font-weight:600;
+    margin:22px 0 10px;
+    color:var(--ink-soft);
+  }
+  p{
+    margin:0 0 13px;
+    color:var(--ink);
+    word-break:break-word;
+  }
+  p strong{color:var(--ink);font-weight:600}
+  /* ===== Lists ===== */
+  ul,ol{margin:6px 0 18px;padding-left:24px}
+  ul li,ol li{margin:5px 0;color:var(--ink)}
+  ul li::marker{color:var(--accent)}
+  ol li::marker{color:var(--ink-mute);font-variant-numeric:tabular-nums}
+  /* ===== Links (button) ===== */
+  a.btn{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:9px 16px;
+    background:var(--accent);
+    color:#fff !important;
+    border-radius:8px;
+    font-weight:600;
+    font-size:14px;
+    box-shadow:var(--shadow-sm);
+    transition:all .2s;
+  }
+  a.btn:hover{background:var(--accent-deep);text-decoration:none;transform:translateY(-1px);box-shadow:var(--shadow-md)}
+  a.btn::after{content:"→";transition:transform .2s}
+  a.btn:hover::after{transform:translateX(3px)}
+  /* ===== Note / callout (highlighted variant) ===== */
+  .note{
+    display:flex;gap:12px;
+    background:var(--gold-soft);
+    border:1px solid #efd9a0;
+    border-left:4px solid var(--gold);
+    border-radius:8px;
+    padding:14px 16px;
+    margin:18px 0;
+    font-size:14.5px;
+    color:var(--ink-soft);
+    box-shadow:var(--shadow-sm);
+  }
+  @media (prefers-color-scheme: dark){
+    .note{border-color:#4a3a1a}
+  }
+  .note .icon{
+    flex-shrink:0;
+    width:22px;height:22px;
+    border-radius:50%;
+    background:var(--gold);
+    color:#fff;
+    display:inline-flex;align-items:center;justify-content:center;
+    font-size:13px;font-weight:700;
+    line-height:1;
+    margin-top:1px;
+  }
+  .note p{margin:0;color:var(--ink-soft)}
+  .note.strong{
+    background:var(--accent-soft);
+    border-color:#f7c8cf;
+    border-left-width:4px;
+    border-left-color:var(--accent);
+  }
+  @media (prefers-color-scheme: dark){
+    .note.strong{border-color:#5a2730}
+  }
+  .note.strong .icon{background:var(--accent)}
+  .note.strong p{color:var(--ink)}
+  /* ===== Table ===== */
+  .table-wrap{overflow-x:auto;margin:18px 0 26px;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  table{width:100%;border-collapse:collapse;font-size:14px;background:var(--bg)}
+  th,td{border-bottom:1px solid var(--line);padding:11px 14px;text-align:left;vertical-align:top;line-height:1.6}
+  th{background:var(--bg-card);color:var(--ink);font-weight:600;font-size:13px;letter-spacing:.02em}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:var(--bg-soft)}
+  td:first-child{color:var(--ink-soft);font-weight:500;width:30%;white-space:nowrap}
+  /* ===== Code block (with copy button) ===== */
+  .codeblock{
+    position:relative;
+    margin:14px 0 22px;
+    border-radius:var(--radius);
+    overflow:hidden;
+    box-shadow:var(--shadow-sm);
+  }
+  .codeblock-header{
+    display:flex;align-items:center;justify-content:space-between;
+    background:var(--code-header);
+    color:var(--code-mute);
+    font-size:12px;
+    letter-spacing:.05em;
+    padding:8px 14px;
+    border-bottom:1px solid var(--code-header-border);
+  }
+  @media (prefers-color-scheme: dark){
+    .codeblock-header{background:#0e1217;border-bottom-color:#1b2027}
+  }
+  .codeblock-header .label{
+    text-transform:uppercase;
+    font-weight:600;
+    font-family:"SFMono-Regular",Consolas,monospace;
+  }
+  .codeblock-header .label::before{
+    content:"";
+    display:inline-block;
+    width:8px;height:8px;
+    background:var(--accent);
+    border-radius:50%;
+    margin-right:8px;
+    vertical-align:middle;
+  }
+  .codeblock .copy-btn{
+    appearance:none;
+    border:1px solid var(--code-btn-border);
+    background:var(--code-btn-bg);
+    color:var(--ink-soft);
+    font-size:11.5px;
+    font-weight:500;
+    padding:4px 10px;
+    border-radius:6px;
+    cursor:pointer;
+    transition:all .15s;
+    font-family:inherit;
+    display:inline-flex;align-items:center;gap:5px;
+  }
+  .codeblock .copy-btn:hover{background:var(--bg-soft);border-color:var(--ink-faint);color:var(--ink)}
+  .codeblock .copy-btn.copied{background:var(--accent);border-color:var(--accent);color:#fff}
+  .codeblock .copy-btn svg{width:12px;height:12px;display:inline-block;vertical-align:-2px}
+  .codeblock pre{
+    background:var(--code-bg);
+    color:var(--code-fg);
+    border-radius:0;
+    padding:18px 20px;
+    overflow-x:auto;
+    font-size:14px;
+    line-height:2;
+    margin:0;
+    box-shadow:none;
+    font-family:"Fira Code","JetBrains Mono","SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+  .codeblock pre code{color:inherit;background:transparent;padding:0;font-size:inherit;white-space:pre}
+  /* Plain <pre> (no copy button) for short snippets */
+  pre{
+    background:var(--code-bg);
+    color:var(--code-fg);
+    border-radius:var(--radius);
+    padding:18px 20px;
+    overflow-x:auto;
+    font-size:14px;
+    line-height:2;
+    margin:14px 0 22px;
+    box-shadow:var(--shadow-sm);
+    font-family:"Fira Code","JetBrains Mono","SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+  pre code{color:inherit;background:transparent;padding:0;font-size:inherit;white-space:pre}
+  /* ===== Figure / image (smaller) ===== */
+  figure{margin:18px 0;padding:0}
+  figure img{
+    display:block;
+    width:auto;
+    max-width:100%;
+    max-height:520px;
+    height:auto;
+    margin:0 auto;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow-sm);
+  }
+  figcaption{
+    text-align:center;
+    color:var(--ink-mute);
+    font-size:12.5px;
+    margin-top:7px;
+    font-variant-numeric:tabular-nums;
+  }
+  /* ===== Q&A ===== */
+  dl.qa{margin:16px 0}
+  dl.qa dt{
+    font-weight:600;
+    color:var(--ink);
+    margin:16px 0 0;
+    padding:11px 14px;
+    background:var(--bg-card);
+    border-radius:8px 8px 0 0;
+    border-left:3px solid var(--accent);
+    font-size:14.5px;
+  }
+  dl.qa dt:first-of-type{margin-top:0}
+  dl.qa dd{
+    margin:0;
+    padding:0 14px 12px;
+    background:var(--bg-card);
+    border-radius:0 0 8px 8px;
+    color:var(--ink-soft);
+    font-size:14px;
+    line-height:1.7;
+  }
+  /* ===== Footer ===== */
+  footer{
+    margin-top:72px;
+    padding-top:22px;
+    border-top:1px solid var(--line);
+    color:var(--ink-mute);
+    font-size:12.5px;
+    text-align:center;
+  }
+  /* ===== Progress + back-to-top ===== */
+  .progress{
+    position:fixed;top:0;left:0;
+    height:2px;width:0;
+    background:var(--accent);
+    z-index:1000;
+    transition:width .1s linear;
+  }
+  .totop{
+    position:fixed;right:20px;bottom:20px;
+    width:38px;height:38px;
+    border-radius:50%;
+    background:var(--ink);
+    color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    box-shadow:var(--shadow-md);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .2s,transform .2s;
+    z-index:100;
+    border:none;
+    font-size:18px;
+    line-height:1;
+  }
+  .totop.show{opacity:1;pointer-events:auto}
+  .totop:hover{background:var(--accent);transform:translateY(-2px)}
+  /* ===== Mobile menu trigger ===== */
+  .menu-btn{
+    display:none;
+    position:fixed;top:14px;left:14px;
+    z-index:200;
+    width:38px;height:38px;
+    border-radius:8px;
+    background:var(--ink);
+    color:#fff;
+    border:none;
+    cursor:pointer;
+    align-items:center;justify-content:center;
+    box-shadow:var(--shadow-md);
+    font-size:18px;
+  }
+  /* ===== Responsive ===== */
+  @media (max-width:920px){
+    .layout{grid-template-columns:1fr;padding:24px 18px 64px;max-width:calc(var(--maxw) + 36px)}
+    .toc{position:fixed;top:0;left:0;bottom:0;width:260px;background:var(--bg);border-right:1px solid var(--line);padding:24px 20px;z-index:150;transform:translateX(-100%);transition:transform .25s;box-shadow:var(--shadow-md)}
+    .toc.open{transform:translateX(0)}
+    .menu-btn{display:flex}
+    body.menu-open{overflow:hidden}
+    .hero h1{font-size:24px}
+    .hero .lede{font-size:15px}
+    h2{font-size:20px;margin-top:52px}
+    h3{font-size:16.5px}
+    .totop{right:14px;bottom:14px}
+  }
+  @media (max-width:480px){
+    .layout{padding:24px 14px 56px}
+    .hero{padding:20px 0 28px;margin-bottom:36px}
+    .hero h1{font-size:21px}
+    pre,.codeblock pre{font-size:12px;padding:12px 14px}
+    th,td{padding:9px 11px;font-size:13px}
+    .note{padding:12px 14px;font-size:13.5px}
+  }
+</style>
+
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<button class="menu-btn" id="menuBtn" aria-label="open navigation">☰</button>
+<div class="layout">
+  <nav class="toc" id="toc" aria-label="chapters">
+    <p class="toc-title">目录</p>
+    <ol>
+      <li class="grp" data-target="sec-1"><a href="#sec-1">概述</a>
+        <ol class="sub">
+          <li><a href="#sec-1-1">1.1 教程目标与适用人群</a></li>
+          <li><a href="#sec-1-2">1.2 两种搭建方式对比</a></li>
+          <li><a href="#sec-1-3">1.3 一键复制模板链接</a></li>
+        </ol>
+      </li>
+      <li class="grp" data-target="sec-2"><a href="#sec-2">前置准备</a>
+        <ol class="sub">
+          <li><a href="#sec-2-1">2.1 账号注册与登录</a></li>
+          <li><a href="#sec-2-2">2.2 积分获取与消耗说明</a></li>
+          <li><a href="#sec-2-3">2.3 基础概念扫盲</a></li>
+        </ol>
+      </li>
+      <li class="grp" data-target="sec-3"><a href="#sec-3">新版本·提示词创建智能体（推荐）</a>
+        <ol class="sub">
+          <li><a href="#sec-3-1">3.1 进入创建页面</a></li>
+          <li><a href="#sec-3-2">3.2 设置提示词</a></li>
+          <li><a href="#sec-3-3">3.3 测试与调试</a></li>
+          <li><a href="#sec-3-4">3.4 生成效果</a></li>
+          <li><a href="#sec-3-5">3.5 发布与分享</a></li>
+        </ol>
+      </li>
+      <li class="grp" data-target="sec-4"><a href="#sec-4">旧版本·手动搭建工作流（备选）</a>
+        <ol class="sub">
+          <li><a href="#sec-4-1">4.1 原理与优势</a></li>
+          <li><a href="#sec-4-2">4.2 切换到旧版本</a></li>
+          <li><a href="#sec-4-3">4.3 创建智能体</a></li>
+          <li><a href="#sec-4-4">4.4 配置提示词</a></li>
+          <li><a href="#sec-4-5">4.5 创建并配置工作流</a></li>
+          <li><a href="#sec-4-6">4.6 测试与发布</a></li>
+          <li><a href="#sec-4-7">4.7 绑定到智能体</a></li>
+        </ol>
+      </li>
+      <li class="grp" data-target="#sec-5"><a href="#sec-5">合规与风险提示</a></li>
+      <li class="grp" data-target="sec-6"><a href="#sec-6">常见问题与解决方案</a></li>
+      <li class="grp" data-target="sec-7"><a href="#sec-7">进阶扩展指南</a></li>
+    </ol>
+  </nav>
+  <main>
+<section class="hero">
+  <span class="eyebrow">Coze 智能体实战教程</span>
+  <h1>小红书配图生成案例</h1>
+  <p class="lede">从零开始，用 Coze 零代码搭建一个能自动生成小红书爆款房产封面配图的智能体。本文给出可直接复用的提示词模板、完整工作流与发布流程。</p>
+  <div class="meta">
+    <span class="chip accent"><b>零代码</b>·适合初学者</span>
+    <span class="chip">搭建时间 <b>3–15 分钟</b></span>
+    <span class="chip">两种方式 <b>提示词 / 工作流</b></span>
+    <span class="chip">适用 <b>小红书封面</b></span>
+  </div>
+</section>
+<section id="sec-1">
+  <h2><span class="sec-num">01</span>概述</h2>
+
+  <h3 id="sec-1-1">1.1 教程目标与适用人群</h3>
+  <p>本教程旨在帮助用户学会零代码、低成本、快速搭建Coze智能体。通过本教程，你将能够：</p>
+  <ul>
+    <li>掌握Coze平台创建智能体与工作流的核心操作方法</li>
+    <li>了解智能体调试与优化技巧，解决文字错误、风格不符等常见问题</li>
+    <li>掌握智能体发布与分享方法，实现团队多人协作使用</li>
+    <li>获得可直接复制使用的智能体模板，生成符合小红书爆款标准的房产封面配图</li>
+  </ul>
+  <p><strong>适用人群</strong>：Coze平台初学者</p>
+
+  <h3 id="sec-1-2">1.2 两种智能体搭建方式对比与选择建议</h3>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>操作方式</th><th>方式一：提示词创建智能体（推荐）</th><th>方式二：手动搭建工作流+智能体（备选）</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>操作难度</td><td>极低，全程只需输入提示词</td><td>中等，需要理解节点与变量等概念</td></tr>
+      <tr><td>搭建时间</td><td>3-5分钟</td><td>5-15分钟</td></tr>
+      <tr><td>灵活性</td><td>中等，适合标准化需求</td><td>极高，支持复杂流程定制</td></tr>
+      <tr><td>出图稳定性</td><td>高，直接调用图像生成插件</td><td>高，可精细控制每个环节</td></tr>
+      <tr><td>积分消耗</td><td>较高，单次创建智能体需要消耗1000积分左右</td><td>较低</td></tr>
+      <tr><td>调试难度</td><td>简单，直接在聊天界面调试</td><td>复杂，需要逐个节点检查运行状态</td></tr>
+      <tr><td>功能扩展性</td><td>有限，仅支持插件扩展</td><td>无限，可添加代码、数据库、API调用等</td></tr>
+      <tr><td>适合场景</td><td>标准化的封面生成需求</td><td>需要多步骤处理、复杂逻辑的需求</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3 id="sec-1-3">1.3 一键复制模板链接</h3>
+  <p>链接：<a class="btn" href="https://code.coze.cn/p/7641162090543087658/preview" target="_blank" rel="noopener">code.coze.cn/p/7641162090543087658/preview</a></p>
+</section>
+
+<section id="sec-2">
+  <h2><span class="sec-num">02</span>前置准备</h2>
+
+  <h3 id="sec-2-1">2.1 账号注册与登录</h3>
+  <ul>
+    <li>访问 Coze官网 <a href="https://www.coze.cn/home" target="_blank" rel="noopener">https://www.coze.cn/home</a>，完成账号注册与登录</li>
+  </ul>
+
+  <h3 id="sec-2-2">2.2 积分获取与消耗说明</h3>
+  <ul>
+    <li>豆包・1.8・深度思考：约1积分/千tokens</li>
+    <li>Seedream 4.0：200积分/张图（文生图/图生图各10张免费额度/月）</li>
+    <li>直接自动创建一次“小红书配图”智能体大约消耗1000积分左右</li>
+  </ul>
+
+  <h3 id="sec-2-3">2.3 基础概念扫盲</h3>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>关键词</th><th>定义</th><th>举例</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>智能体</td><td>类似你创建的一个AI应用</td><td>小红书封面配图/视频脚本编辑</td></tr>
+      <tr><td>工作流</td><td>可视化编排的多步骤自动化流程，将多个节点按逻辑顺序串联，完成复杂的 AI 任务</td><td>开始节点→中文转换为英文节点→图像生成节点→结束节点</td></tr>
+      <tr><td>节点</td><td>工作流的最小执行单元，每个节点完成一个独立的具体操作</td><td>大模型节点、图像生成节点、开始节点、结束节点等</td></tr>
+      <tr><td>提示词</td><td>给AI的提示词，决定它输出的质量</td><td>&quot;请你模仿某小红书博主的文风…&quot;</td></tr>
+      <tr><td>输入变量</td><td>你可以传入一些参数，提示词中调用</td><td>标题、产品名、风格</td></tr>
+      <tr><td>上下文</td><td>上一个节点输出的内容传递给下一个</td><td>生成脚本→自动接给配音工具</td></tr>
+      <tr><td>插件</td><td>外部连接器，比如企业微信、Notion</td><td>自动发消息、创建数据库条目</td></tr>
+      <tr><td>工具包</td><td>一组内置功能，比如音视频转换、时间戳等</td><td>&quot;语音转文字&quot; 就是一个工具包功能</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="sec-3">
+  <h2><span class="sec-num">03</span>新版本-提示词创建智能体（推荐）</h2>
+
+  <h3 id="sec-3-1">3.1 进入智能体创建页面</h3>
+  <figure><img src="media/image1.png" alt="进入智能体创建页面" loading="lazy" decoding="async"></figure>
+
+  <h3 id="sec-3-2">3.2 设置提示词</h3>
+  <p>建议先用Deepseek或者豆包对提示词进行结构化润色，以下提供完整可复制的提示词模板：</p>
+  <div class="codeblock">
+  <div class="codeblock-header">
+    <span class="label">房地产智能体创建规范（提示词模板）</span>
+    <button class="copy-btn" type="button" data-copy="real-estate-prompt" aria-label="复制代码"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>复制</span></button>
+  </div>
+  <pre><code>房地产小红书封面配图智能体创建规范
+本规范用于创建一个专注于房地产领域的智能体，可根据用户提供的小红书文案自动生成完整、可直接落地的封面配图设计方案及 AI 绘图提示词。
+一、功能定位
+输入：用户提供的小红书完整文案（包含标题 + 正文）
+输出：符合小红书平台特性的房地产封面图片全流程设计方案
+输出内容包含：
+- 封面主标题（基于原文案优化，保留核心信息）
+- 封面副标题（基于原文案优化，补充价值点）
+- 封面排版结构（文字位置、字号大小、视觉层次）
+- 图片构图建议（主体元素、背景选择、人物 / 景物关系、空间布局）
+- 配色方案与字体层级建议
+- 可直接用于 Midjourney/DALL・E 等工具的 AI 绘图 Prompt
+
+二、专业要求
+- 严格聚焦房地产领域，覆盖楼盘、户型、景观、地段、生活方式等核心内容
+- 封面设计需同时具备高级感、生活方式感和小红书爆款感三大特质
+- 兼顾视觉冲击力与用户点击欲望，平衡美学与转化效果
+- 所有文字、标题必须与原文案核心信息保持一致，不得随意改写关键内容
+
+三、生成规则
+- 必须先完整解析用户输入的文案，精准提炼核心卖点与用户痛点
+- 输出方案必须同时包含文字排版、图片构图、色彩搭配、风格定位四大模块
+- 生成的 AI 绘图 Prompt 必须完整、精准，可直接复制使用无需二次修改
+- 所有建议需具备高度可操作性，用户可直接依据方案完成封面制作
+- 需要把图像生成插件添加到智能体中，因为需要根据文本生成图片
+
+四、标准输出格式
+标准输出格式模板：
+【封面定位】
+  核心目标：
+  目标用户：
+  情绪关键词：
+  点击诱因：
+
+【封面标题优化】
+  主标题：
+  副标题：
+  强调词：
+
+【封面排版与构图】
+  文字位置：
+  图片主体与背景：
+  人物或景物状态：
+  镜头角度：
+
+【配色与字体】
+  主色调：
+  辅助色：
+  字体层级：
+
+【AI 绘图 Prompt】
+  （提供可直接复制使用的高质量、高精准度 AI 绘图提示词）
+
+五、风格约束
+严格遵循小红书平台风格：年轻化、氛围感、生活方式导向
+坚决避免传统房地产广告的生硬感、文字堆积感和土味配色
+确保封面在手机端小图模式下仍能一眼抓住用户注意力
+优先使用简约、高级、有质感的设计语言，传递品质生活理念
+
+六、核心目标
+创建一个能够自动处理任意小红书房地产文案的智能体，输出准确、高级、可直接落地的封面设计方案及 AI 生成 Prompt，帮助用户快速制作高点击率的小红书房地产封面。
+
+</code></pre>
+
+  <p><strong></strong></p>
+  <p></p>
+  <div class="note strong"><span class="icon">!</span><p><strong>注意：</strong>在提示词中需要说明把“图像生成插件”添加到当前的智能体中，避免无法调用图像生成模型；此外，如果觉得提示词不够好，可以点击“一键优化”进行调试。</p></div>
+ <figure><img src="media/image2.png" alt="提示词填写效果" loading="lazy" decoding="async"></figure>
+ <figure><img src="media/image3.png" alt="提示词填写效果" loading="lazy" decoding="async"></figure>
+
+
+  <h3 id="sec-3-3">3.3 测试与调试智能体</h3>
+  <figure><img src="media/image4.png" alt="智能体基本信息填写" loading="lazy" decoding="async"></figure>
+
+  <h3 id="sec-3-4">3.4 生成效果</h3>
+  <figure><img src="media/image5.png" alt="智能体功能配置" loading="lazy" decoding="async"></figure>
+  <p>最终生成的图片效果：</p>
+  <figure><img src="media/image6.jpeg" alt="最终生成的图片效果" loading="lazy" decoding="async"></figure>
+
+  <h3 id="sec-3-5">3.5 发布与分享智能体</h3>
+  <p>分享智能体的方式有两种：API模式和WebSDK模式。</p>
+  <figure><img src="media/image7.png" alt="发布与分享智能体" loading="lazy" decoding="async"></figure>
+  <p>通常采用WebSDK的分享方式，把网页链接分享给其他人之后，其他人可以直接通过链接使用该智能体。</p>
+  <figure><img src="media/image8.png" alt="WebSDK分享设置" loading="lazy" decoding="async"></figure>
+</section>
+
+<section id="sec-4">
+  <h2><span class="sec-num">04</span>旧版本-手动搭建工作流和智能体（备选）</h2>
+
+  <h3 id="sec-4-1">4.1 工作流原理与核心优势</h3>
+  <figure><img src="media/image9.png" alt="工作流原理示意图" loading="lazy" decoding="async"></figure>
+  <p>手动搭建的工作流采用 &quot;中文需求提示词→中文转换为英文提示词→图像生成节点绘图&quot; 的三段式架构，解决Seedream模型中文理解偏差问题，实现高精准度的房产封面生成。</p>
+  <p>这套工作流搭建起来挺简单的，下面就带领大家从零开始搭建这套工作流。</p>
+
+  <h3 id="sec-4-2">4.2 切换到旧版本</h3>
+  <figure><img src="media/image10.png" alt="切换到旧版本入口" loading="lazy" decoding="async"></figure>
+  <p>点击项目开发：</p>
+  <figure><img src="media/image11.png" alt="项目开发页面" loading="lazy" decoding="async"></figure>
+
+  <h3 id="sec-4-3">4.3 创建智能体</h3>
+  <p>点击“创建”-“创建智能体”：</p>
+  <figure><img src="media/image12.png" alt="创建智能体按钮" loading="lazy" decoding="async"></figure>
+  <p>选择默认的“标准创建”，添加“智能体名称”：</p>
+  <figure><img src="media/image13.png" alt="标准创建智能体" loading="lazy" decoding="async"></figure>
+  <p>一共分为三大模块：</p>
+  <figure><img src="media/image14.png" alt="智能体三大模块示意" loading="lazy" decoding="async"></figure>
+ 
+
+  <h3 id="sec-4-4">4.4 配置智能体提示词</h3>
+  <figure><img src="media/image15.png" alt="配置智能体提示词" loading="lazy" decoding="async"></figure>
+  <p>点击“替换”：</p>
+  <figure><img src="media/image16.png" alt="替换提示词" loading="lazy" decoding="async"></figure>
+
+  <h3 id="sec-4-5">4.5 创建并配置工作流</h3>
+  <p>点击工作流旁边的“+”号：</p>
+  <figure><img src="media/image17.png" alt="创建工作流按钮" loading="lazy" decoding="async"></figure>
+  <p>点击“创建工作流”：</p>
+  <figure><img src="media/image18.png" alt="创建工作流弹窗" loading="lazy" decoding="async"></figure>
+  <p>点击“创建工作流”，输入“工作流名称”和“工作流描述”。</p>
+  <div class="note"><span class="icon">!</span><p>注意：工作流名称只允许字母、数字和下划线，并以字母开头；推荐使用豆包来帮忙填写和润色工作流名称和工作流描述。</p></div>
+  <figure><img src="media/image19.png" alt="工作流名称和描述" loading="lazy" decoding="async"></figure>
+  <div class="codeblock">
+  <div class="codeblock-header">
+    <span class="label">工作流名称</span>
+    <button class="copy-btn" type="button" aria-label="复制代码"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>复制</span></button>
+  </div>
+  <pre><code> xiaohongshu_cover_generator</code> </pre>
+  <div class="codeblock">
+  <div class="codeblock-header">
+    <span class="label">工作流描述</span>
+    <button class="copy-btn" type="button" aria-label="复制代码"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>复制</span></button>
+  </div>
+  <pre><code> 
+  触发场景：用户需求包含房地产小红书封面配图、房产笔记首图、房源种草封面、买房攻略封面、楼盘探店封面、租房引流封面、房产科普图文封面、地产营销内容配图，或明确要求为房地产领域小红书文案/笔记生成配套封面配图时，必须调用此工作流。</p>
+  核心能力：支持基于输入的房产文案内容、楼盘/房源信息（区位/户型/配套/价格）、核心营销卖点、目标客群画像（刚需首套/改善置换/投资置业）、内容类型（种草/干货/科普/引流/探店）、风格偏好（高端豪宅风、刚需温馨风、干货专业风、实景氛围感等），自动完成封面图的创意策划、画面生成、平台规格适配、合规校验，最终输出符合小红书房产内容流量规则、高点击率、能有效引导用户咨询转化的封面配图。</p>
+  调用边界：所有房地产领域的小红书封面配图生成任务，均优先调用此工作流，禁止大模型自主生成相关图片内容。</code> </pre>
+  <figure><img src="media/image20.png" alt="工作流创建完成" loading="lazy" decoding="async"></figure>
+
+  <h3 id="sec-4-5-1">4.5.1 添加开始节点</h3>
+  <figure><img src="media/image21.png" alt="添加开始节点" loading="lazy" decoding="async"></figure>
+ 
+
+  <h3 id="sec-4-5-2">4.5.2 添加中文转英文大模型节点</h3>
+  <figure><img src="media/image22.png" alt="添加中文转英文节点" loading="lazy" decoding="async"></figure>
+  <p>因为英文生成的图片更加精准，所以把中文先转换为英文，再生成图片。</p>
+  <figure><img src="media/image23.png" alt="中文转英文节点设置" loading="lazy" decoding="async"></figure>
+  <p>设置系统提示词和用户提示词：</p>
+  <div class="codeblock">
+  <div class="codeblock-header">
+    <span class="label">系统提示词-AI绘图翻译专家</span>
+    <button class="copy-btn" type="button" aria-label="复制代码"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>复制</span></button>
+  </div>
+  <pre><code>你是国内头部房产MCN机构专属AI绘图翻译专家，拥有5年以上房产类AI封面图创作经验，100%精通Seedream模型的提示词语法、权重规则、出图偏好，以及房地产垂直领域的中英双语专业表达，能通过翻译优化，1:1还原中文需求的画面效果，零偏差出图。
+你的唯一任务：将用户输入的中文小红书房产封面需求，翻译并重构为Seedream模型专属的高精准英文绘图提示词，全程围绕「房产营销转化+小红书封面爆款属性+Seedream稳定出图」三大核心目标，拒绝直译导致的画面偏差。
+翻译和重构铁律：
+1. 合规+精准双保障：房地产广告法相关的合规信息、楼盘/房源的核心参数，翻译时必须100%准确，不丢失关键营销信息；所有视觉表达、风格描述，必须使用Seedream模型训练数据中高频出现的标准英文关键词，杜绝生僻词、中式英语，确保出图不跑偏。
+2. 权重逻辑严格匹配：严格遵循Seedream提示词权重规则，优先级排序为：【画面核心主体】→【核心营销卖点】→【风格调性】→【构图与尺寸】→【光影与色彩】→【细节质感】→【平台属性】，用英文逗号分隔，核心关键词重复强化权重，提升出图稳定性。
+3. 场景优化：针对不同房产赛道做专属翻译优化：
+   - 新房/豪宅种草：强化高级感、氛围感、建筑美学的英文表达，补充 cinematic、luxury、high-end 等高频修饰词
+   - 二手房/租房：强化真实感、居住感、实拍质感的英文表达，补充 realistic、lifestyle、cozy 等高频修饰词
+   - 干货科普封面：强化专业感、信息排版、清晰易读的英文表达，补充 clean layout、professional、sharp text 等高频修饰词
+4. 输出标准：最终仅输出优化完成的纯英文绘图提示词，无任何中文、无额外解释、无多余符号，格式完全符合Seedream模型的输入要求，可直接复制用于出图。</code></pre>
+  </div>
+  <p>用户提示词-基本上把变量给它即可</p>
+  <figure><img src="media/image24.png" alt="用户提示词设置" loading="lazy" decoding="async"></figure>
+  
+
+  <h3 id="sec-4-5-3">4.5.3 添加图像生成节点</h3>
+  <figure><img src="media/image25.png" alt="添加图像生成节点" loading="lazy" decoding="async"></figure>
+  <p>不同的图像生成模型的消费情况不同，本案例选择“doubao-seedream-4.0”模型：</p>
+  <figure><img src="media/image26.png" alt="选择图像生成模型" loading="lazy" decoding="async"></figure>
+  <p>设置图像生成节点：</p>
+  <figure><img src="media/image27.png" alt="图像生成节点参数" loading="lazy" decoding="async"></figure>
+  <p>往下滑：</p>
+  <figure><img src="media/image28.png" alt="图像生成节点更多参数" loading="lazy" decoding="async"></figure>
+  <p>选择变量名</p>
+  <figure><img src="media/image29.png" alt="选择输入变量" loading="lazy" decoding="async"></figure>
+ 
+
+  <h3 id="sec-4-5-4">4.5.4 添加结束节点并连接流程</h3>
+  <figure><img src="media/image30.png" alt="添加结束节点并连接" loading="lazy" decoding="async"></figure>
+
+  <h3 id="sec-4-6">4.6 测试与发布工作流</h3>
+  <ol>
+    <li>点击工作流编辑器右下角的 &quot;试运行&quot; 按钮</li>
+    <li>在弹出的输入框中输入测试内容：&quot;龙华小区三房一厅新房出售，南北通透，拎包入住&quot;</li>
+    <li>查看每个节点的运行状态和输出结果</li>
+    <li>如果中文改英文节点输出了正确的英文提示词，且图像生成节点返回了图片，则工作流搭建成功</li>
+  </ol>
+  <figure><img src="media/image31.png" alt="工作流试运行结果" loading="lazy" decoding="async"></figure>
+  <p>成功后，点击发布</p>
+  <figure><img src="media/image32.png" alt="发布工作流" loading="lazy" decoding="async"></figure>
+
+  <h3 id="sec-4-7">4.7 将工作流绑定到智能体</h3>
+  <figure><img src="media/image33.png" alt="智能体中插入工作流" loading="lazy" decoding="async"></figure>
+  <figure><img src="media/image34.png" alt="智能体绑定工作流" loading="lazy" decoding="async"></figure>
+  <p>最终生图效果：</p>
+  <figure><img src="media/image6.jpeg" alt="最终生图效果" loading="lazy" decoding="async"></figure>
+</section>
+
+<section id="sec-5">
+  <h2><span class="sec-num">05</span>合规与风险提示</h2>
+  <ol>
+    <li>房地产广告法合规：禁止在文案和提示词中使用 &quot;最&quot;、&quot;第一&quot;、&quot;绝版&quot;、&quot;升值潜力无限&quot; 等极限词和承诺性表述</li>
+    <li>版权风险：生成的图片仅供个人学习和非商业用途使用，不得用于商业广告；如果使用真实楼盘名称和信息，需获得相关方授权</li>
+    <li>内容真实性：确保房产信息真实准确，不得发布虚假房源信息</li>
+    <li>平台规则：遵守小红书平台的社区规范和广告发布规则，避免被限流或封号</li>
+  </ol>
+</section>
+
+<section id="sec-6">
+  <h2><span class="sec-num">06</span>常见问题与解决方案</h2>
+  <dl class="qa">
+    <dt>Q1：工作流运行失败，提示 &quot;变量未定义&quot; 怎么办？</dt>
+    <dd>A：检查所有节点的变量引用是否正确，确保变量名拼写一致，且节点连接顺序正确</dd>
+    <dt>Q2：生成的图片有水印怎么办？</dt>
+    <dd>A：在图像生成节点设置中关闭 &quot;图片水印&quot; 选项</dd>
+    <dt>Q3：积分不够了怎么办？</dt>
+    <dd>A：可以使用免费额度，或在 Coze 个人中心购买积分；也可以更换为免费的图像生成模型</dd>
+    <dt>Q4：如何分享我的智能体给其他人使用？</dt>
+    <dd>A：点击智能体页面右上角的 &quot;发布&quot;，选择 &quot;分享链接&quot;，即可生成可公开访问的链接</dd>
+    <dt>Q5：生成的图片文字错误或者风格不符怎么办？</dt>
+    <dd>A:可以优化提示词或者选择更加优质的图像生成模型</dd>
+    <dt>Q6：智能体不调用工作流怎么办？</dt>
+    <dd>A:先检查智能体与工作流的绑定关系，如果没有问题，再优化工作流触发描述</dd>
+  </dl>
+</section>
+
+<section id="sec-7">
+  <h2><span class="sec-num">07</span>进阶扩展指南</h2>
+  <ol>
+    <li>添加参考图功能：在图像生成节点开启 &quot;参考图&quot;，允许用户上传实景图作为参考</li>
+    <li>批量生成图片：将 &quot;最多生成图片数量&quot; 改为 3，让用户可以选择最佳效果</li>
+    <li>自动添加营销标签：增加一个大模型节点，在生成图片后自动添加小红书热门标签</li>
+    <li>多风格切换：添加选择器节点，让用户可以选择 &quot;温馨刚需风&quot;、&quot;高端豪宅风&quot;、&quot;干货专业风&quot; 等不同风格</li>
+  </ol>
+</section>
+
+<footer>
+  本教程由盒知行制作 · 仅供学习参考
+</footer>
+</main>
+</div>
+
+<button class="totop" id="totop" aria-label="返回顶部">↑</button>
+
+<script>
+  // 1. Active section highlight in TOC
+  (function(){
+    var sections = document.querySelectorAll('main section[id]');
+    var tocLinks = {};
+    document.querySelectorAll('.toc a[href^="#"]').forEach(function(a){
+      var id = a.getAttribute('href').slice(1);
+      tocLinks[id] = a;
+    });
+    var grpMap = {};
+    document.querySelectorAll('.toc .grp').forEach(function(g){
+      var id = g.getAttribute('data-target');
+      if(id) grpMap[id] = g;
+    });
+    var current = null;
+    function update(){
+      var fromTop = window.scrollY + 120;
+      var active = null;
+      sections.forEach(function(sec){
+        if(sec.offsetTop <= fromTop) active = sec.id;
+      });
+      if(active === current) return;
+      current = active;
+      // toggle active on sub link
+      Object.keys(tocLinks).forEach(function(id){
+        tocLinks[id].classList.remove('active');
+      });
+      // also clear all group active
+      Object.keys(grpMap).forEach(function(id){
+        grpMap[id].classList.remove('active');
+      });
+      if(active && tocLinks[active]){
+        tocLinks[active].classList.add('active');
+      }
+      // find which group this id belongs to
+      if(active && grpMap[active]){
+        grpMap[active].classList.add('active');
+      } else {
+        // try parent section (id is sub like sec-3-1, parent is sec-3)
+        var parent = active ? active.replace(/-(\d+)$/,'').replace(/-(\d+)$/,'') : null;
+        // Simpler: walk up
+        if(active){
+          var parts = active.split('-');
+          for(var i=parts.length;i>1;i--){
+            var cand = parts.slice(0,i-1).join('-') + '-' + parts[i-1].replace(/.$/,'');
+            // fallback: just check grpMap keys
+          }
+          // Direct lookup: groups are sec-1..sec-7
+          for(var k=1;k<=7;k++){
+            if(active.indexOf('sec-'+k+'-') === 0 || active === 'sec-'+k){
+              var g = grpMap['sec-'+k];
+              if(g) g.classList.add('active');
+              break;
+            }
+          }
+        }
+      }
+    }
+    window.addEventListener('scroll', update, {passive:true});
+    window.addEventListener('load', update);
+    update();
+  })();
+
+  // 2. Reading progress bar
+  (function(){
+    var bar = document.getElementById('progress');
+    function update(){
+      var h = document.documentElement;
+      var scrolled = h.scrollTop || document.body.scrollTop;
+      var height = h.scrollHeight - h.clientHeight;
+      bar.style.width = height > 0 ? (scrolled/height*100) + '%' : '0';
+    }
+    window.addEventListener('scroll', update, {passive:true});
+    window.addEventListener('load', update);
+    update();
+  })();
+
+  // 3. Back to top
+  (function(){
+    var btn = document.getElementById('totop');
+    function update(){
+      if(window.scrollY > 400) btn.classList.add('show');
+      else btn.classList.remove('show');
+    }
+    window.addEventListener('scroll', update, {passive:true});
+    btn.addEventListener('click', function(){
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+    update();
+  })();
+
+  // 4. Mobile TOC menu
+  (function(){
+    var btn = document.getElementById('menuBtn');
+    var toc = document.getElementById('toc');
+    btn.addEventListener('click', function(){
+      var open = toc.classList.toggle('open');
+      document.body.classList.toggle('menu-open', open);
+    });
+    toc.addEventListener('click', function(e){
+      if(e.target.tagName === 'A'){
+        toc.classList.remove('open');
+        document.body.classList.remove('menu-open');
+      }
+    });
+  })();
+
+  // 5. Copy-to-clipboard for code blocks
+  (function(){
+    function fallbackCopy(text){
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly','');
+      ta.style.position='absolute';
+      ta.style.left='-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      try{ document.execCommand('copy'); }catch(e){}
+      document.body.removeChild(ta);
+    }
+    document.querySelectorAll('.codeblock').forEach(function(block){
+      var btn = block.querySelector('.copy-btn');
+      var pre = block.querySelector('pre code') || block.querySelector('pre');
+      if(!btn || !pre) return;
+      btn.addEventListener('click', function(){
+        var text = pre.innerText;
+        var done = function(){
+          btn.classList.add('copied');
+          var label = btn.querySelector('span');
+          var orig = label.textContent;
+          label.textContent = '已复制';
+          setTimeout(function(){
+            btn.classList.remove('copied');
+            label.textContent = orig;
+          }, 1600);
+        };
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(text).then(done, function(){
+            fallbackCopy(text); done();
+          });
+        } else {
+          fallbackCopy(text); done();
+        }
+      });
+    });
+  })();
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
